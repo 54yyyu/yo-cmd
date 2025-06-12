@@ -109,7 +109,7 @@ yo find files larger than 100MB
 yo make a new folder called projects
 
 # Remove files
-yo delete all log files
+yo delete all the csv files
 
 # Display system information
 yo show me system information

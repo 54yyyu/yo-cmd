@@ -2,7 +2,7 @@
 # Cleanup and installation script for yo command
 
 # Repository info
-REPO_URL="https://raw.githubusercontent.com/yourusername/yo-cmd/main/yo"
+REPO_URL="https://raw.githubusercontent.com/54yyyu/yo-cmd/main/yo"
 TEMP_DIR="/tmp/yo-install-$$"
 
 # Clean up any existing installations

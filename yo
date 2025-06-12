@@ -289,6 +289,8 @@ def main():
     parser.add_argument("description", nargs="*", help="Natural language description of the command you want")
     parser.add_argument("--api", action="store_true", help="Configure API key")
     parser.add_argument("--history", action="store_true", help="Show command history")
+    parser.add_argument("--clear-history", action="store_true", help="Clear all command history")
+    parser.add_argument("--model", type=str, help="Temporarily use a specific model for this query")
     args = parser.parse_args()
 
     if args.api:
@@ -299,6 +301,17 @@ def main():
         display_history()
         return
 
+    if args.clear_history:
+        if input(f"{Colors.YELLOW}Are you sure you want to clear all command history? (y/n): {Colors.ENDC}").lower() == 'y':
+            if os.path.exists(HISTORY_FILE):
+                os.remove(HISTORY_FILE)
+                print(f"{Colors.GREEN}Command history cleared.{Colors.ENDC}")
+            else:
+                print(f"{Colors.YELLOW}No history file found to clear.{Colors.ENDC}")
+        else:
+            print(f"{Colors.YELLOW}Operation cancelled.{Colors.ENDC}")
+        return
+
     if not args.description:
         print(f"{Colors.YELLOW}Please provide a description of the command you want.{Colors.ENDC}")
         print(f"Usage: yo <description>")
@@ -307,6 +320,10 @@ def main():
 
     # Initialize the Gemini API
     model_name = initialize_genai()
+    
+    # Use specified model if provided
+    if args.model:
+        model_name = args.model
 
     # Generate the command
     description = " ".join(args.description)
@@ -335,10 +352,35 @@ def main():
     # Display the command with explanation
     print(f"{Colors.GREEN}{command} {Colors.BLUE}# {explanation}{Colors.ENDC}")
 
-    # Ask if user wants to execute the command (auto-yes on Enter)
-    execute = input(f"{Colors.YELLOW}Execute this command? (y/n, Enter=yes): {Colors.ENDC}").strip().lower()
-    if execute == 'y' or execute == '':
+    # Ask if user wants to execute the command with full options
+    execute = input(f"{Colors.YELLOW}Execute this command? (y/n/e to edit/c to copy, Enter=yes): {Colors.ENDC}").strip().lower()
+    
+    if execute == 'y' or execute == '':  # Auto-yes on Enter
         os.system(command)
+    elif execute == 'e':
+        # Set up readline to pre-fill the command for editing
+        readline.set_startup_hook(lambda: readline.insert_text(command))
+        try:
+            edited_command = input(f"{Colors.YELLOW}Edit command: {Colors.ENDC}")
+        finally:
+            readline.set_startup_hook(None)
+        
+        if edited_command.strip():
+            os.system(edited_command.strip())
+        else:
+            print(f"{Colors.YELLOW}No command entered, using original.{Colors.ENDC}")
+            os.system(command)
+    elif execute == 'c':
+        try:
+            import pyperclip
+            pyperclip.copy(command)
+            print(f"{Colors.GREEN}Command copied to clipboard!{Colors.ENDC}")
+        except ImportError:
+            print(f"{Colors.RED}pyperclip library not found. Install with: pip install pyperclip{Colors.ENDC}")
+        except Exception as e:
+            print(f"{Colors.RED}Could not copy to clipboard: {e}{Colors.ENDC}")
+    else:
+        print(f"{Colors.YELLOW}Command execution cancelled.{Colors.ENDC}")
 
 if __name__ == "__main__":
     main()

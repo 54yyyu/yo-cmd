@@ -27,12 +27,12 @@ A command-line tool that converts natural language descriptions into terminal co
 curl -fsSL https://raw.githubusercontent.com/54yyyu/yo-cmd/main/install.sh | sh
 ```
 
-# Or install via npm
+Or install via npm
 ```
 npm install -g yo-cmd
 ```
 
-# Or clone and install manually
+Or clone and install manually
 ```
 git clone https://github.com/54yyyu/yo-cmd.git
 cd yo-cmd

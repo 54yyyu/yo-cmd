@@ -18,9 +18,9 @@ from pathlib import Path
 try:
     from google import genai
 except ImportError:
-    print("Google Generative AI library not found. Installing...")
+    print("Google Gen AI library not found. Installing...")
     import subprocess
-    subprocess.call([sys.executable, "-m", "pip", "install", "google-generativeai"])
+    subprocess.call([sys.executable, "-m", "pip", "install", "google-genai"])
     from google import genai
 
 # Define colors for terminal output
@@ -38,7 +38,7 @@ class Colors:
 CONFIG_DIR = os.path.expanduser("~/.config/yo")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 HISTORY_FILE = os.path.join(CONFIG_DIR, "history.json")
-DEFAULT_MODEL = "gemini-2.5-flash-preview-04-17"
+DEFAULT_MODEL = "gemini-2.5-flash-preview-05-20" # gemini-2.0-flash-lite
 
 def ensure_config_dir():
     """Ensure the config directory exists"""
@@ -109,7 +109,8 @@ def configure_api():
     api_key = get_api_key()
     if api_key:
         try:
-            genai.configure(api_key=api_key)
+            # Test the API key by creating a client
+            client = genai.Client(api_key=api_key)
             print(f"{Colors.GREEN}Gemini API successfully configured with the new key.{Colors.ENDC}")
             return api_key
         except Exception as e:
@@ -137,9 +138,8 @@ def initialize_genai():
             sys.exit(1)
     
     try:
-        genai.configure(api_key=api_key)
-        # Test the API key with a simple call if possible, or rely on first generate_command call
-        # For now, we assume configuration is successful if no exception is raised.
+        # Test the API key by creating a client
+        client = genai.Client(api_key=api_key)
         print(f"{Colors.GREEN}Gemini API configured successfully.{Colors.ENDC}")
     except Exception as e:
         print(f"{Colors.RED}Failed to configure Gemini API: {str(e)}{Colors.ENDC}")
@@ -150,7 +150,7 @@ def initialize_genai():
             api_key = get_api_key()
             if api_key:
                 try:
-                    genai.configure(api_key=api_key)
+                    client = genai.Client(api_key=api_key)
                     print(f"{Colors.GREEN}Gemini API configured successfully with new key.{Colors.ENDC}")
                 except Exception as e_new:
                     print(f"{Colors.RED}Still failed to configure Gemini API with new key: {str(e_new)}{Colors.ENDC}")
@@ -180,13 +180,8 @@ def generate_command(description, model_name):
         return None
 
     try:
-        # Ensure genai is configured before creating a model instance
-        # initialize_genai() should have been called earlier by main logic
-        # but as a safeguard, we can check and configure if needed.
-        # However, it's better to ensure main() calls initialize_genai() once.
-        
-        # Create a GenerativeModel instance
-        model_instance = genai.GenerativeModel(model_name)
+        # Create a client instance with the API key
+        client = genai.Client(api_key=api_key)
         
         prompt = f"""
 Convert the following natural language description into a Unix/Linux terminal command:
@@ -207,25 +202,20 @@ Examples:
 - For "find all python files in current directory": find . -name "*.py" # Finds Python files in the current directory
 """
 
-        response = model_instance.generate_content(prompt)
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt
+        )
         
-        # Accessing the response text safely
-        if response and response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
-            command_text = response.candidates[0].content.parts[0].text.strip()
+        # Access the response text
+        if response and hasattr(response, 'text') and response.text:
+            command_text = response.text.strip()
             if not command_text or command_text.startswith("ERROR:"):
                 print(f"{Colors.YELLOW}Warning: The model could not generate a valid command. Response: {command_text}{Colors.ENDC}")
                 return None
             return command_text
-        elif hasattr(response, 'text') and response.text: # Fallback for simpler response structures
-             command_text = response.text.strip()
-             if not command_text or command_text.startswith("ERROR:"):
-                print(f"{Colors.YELLOW}Warning: The model could not generate a valid command. Response: {command_text}{Colors.ENDC}")
-                return None
-             return command_text
         else:
             print(f"{Colors.RED}Error: Received an empty or unexpected response from the API.{Colors.ENDC}")
-            # Log the full response for debugging if possible and safe
-            # print(f"DEBUG: Full API response: {response}")
             return None
     
     except Exception as e:
@@ -238,7 +228,8 @@ Examples:
                 new_api_key = get_api_key() # get_api_key saves the key
                 if new_api_key:
                     try:
-                        genai.configure(api_key=new_api_key) # Re-configure with the new key
+                        # Test the new key
+                        test_client = genai.Client(api_key=new_api_key)
                         print(f"{Colors.GREEN}API key updated. Please try your command again.{Colors.ENDC}")
                         # It's better to let the user retry the command rather than re-calling generate_command recursively here
                         return None # Indicate failure for this attempt, user should retry

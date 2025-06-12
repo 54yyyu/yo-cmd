@@ -38,7 +38,7 @@ class Colors:
 CONFIG_DIR = os.path.expanduser("~/.config/yo")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 HISTORY_FILE = os.path.join(CONFIG_DIR, "history.json")
-DEFAULT_MODEL = "gemini-2.5-flash-preview-05-20" # gemini-2.0-flash-lite
+
 
 def ensure_config_dir():
     """Ensure the config directory exists"""
@@ -94,8 +94,6 @@ def get_api_key():
         if api_key_input.lower() == 'exit':
             print(f"{Colors.YELLOW}API key configuration cancelled.{Colors.ENDC}")
             return None
-        # Basic validation (e.g., length) can be added here if desired
-        # For instance: if len(api_key_input) < 20: print("Invalid API key format."); continue
         break
 
     config = load_config()
@@ -111,16 +109,14 @@ def configure_api():
         try:
             # Test the API key by creating a client
             client = genai.Client(api_key=api_key)
-            print(f"{Colors.GREEN}Gemini API successfully configured with the new key.{Colors.ENDC}")
+            print(f"{Colors.GREEN}API key configured successfully.{Colors.ENDC}")
             return api_key
         except Exception as e:
-            print(f"{Colors.RED}Failed to configure Gemini API with the provided key: {str(e)}{Colors.ENDC}")
-            print(f"{Colors.YELLOW}Please ensure your API key is correct and has the necessary permissions.{Colors.ENDC}")
+            print(f"{Colors.RED}Failed to configure API with the provided key: {str(e)}{Colors.ENDC}")
             # Optionally, remove the invalid key from config
             config = load_config()
             config["api_key"] = None
             save_config(config)
-            print(f"{Colors.YELLOW}Invalid API key has been cleared from configuration.{Colors.ENDC}")
             return None
     return None
 
@@ -128,47 +124,17 @@ def initialize_genai():
     """Initialize the Gemini API client"""
     config = load_config()
     api_key = config.get("api_key")
-    model_name = config.get("model", DEFAULT_MODEL)  # Renamed to model_name for clarity
+    model_name = config.get("model", DEFAULT_MODEL)
     
     if not api_key:
-        print(f"{Colors.YELLOW}No API key found. Prompting for new key.{Colors.ENDC}")
-        api_key = get_api_key() # get_api_key already saves the new key
-        if not api_key: # If user still doesn't provide a key
+        print(f"{Colors.YELLOW}No API key found.{Colors.ENDC}")
+        api_key = get_api_key()
+        if not api_key:
             print(f"{Colors.RED}API key is required to use this tool. Exiting.{Colors.ENDC}")
             sys.exit(1)
     
-    try:
-        # Test the API key by creating a client
-        client = genai.Client(api_key=api_key)
-        print(f"{Colors.GREEN}Gemini API configured successfully.{Colors.ENDC}")
-    except Exception as e:
-        print(f"{Colors.RED}Failed to configure Gemini API: {str(e)}{Colors.ENDC}")
-        print(f"{Colors.YELLOW}This might be due to an invalid API key or network issues.{Colors.ENDC}")
-        # Optionally, prompt to re-enter API key here or handle as a fatal error
-        user_choice = input(f"{Colors.YELLOW}Would you like to try updating the API key? (y/n): {Colors.ENDC}").lower()
-        if user_choice == 'y':
-            api_key = get_api_key()
-            if api_key:
-                try:
-                    client = genai.Client(api_key=api_key)
-                    print(f"{Colors.GREEN}Gemini API configured successfully with new key.{Colors.ENDC}")
-                except Exception as e_new:
-                    print(f"{Colors.RED}Still failed to configure Gemini API with new key: {str(e_new)}{Colors.ENDC}")
-                    # Clear the newly entered (and failed) API key from config
-                    config = load_config()
-                    if config.get("api_key") == api_key: # api_key here is the newly entered one
-                        config["api_key"] = None
-                        save_config(config)
-                        print(f"{Colors.YELLOW}The newly entered API key also failed and has been cleared from configuration.{Colors.ENDC}")
-                    sys.exit(1)
-            else:
-                print(f"{Colors.RED}No API key provided. Exiting.{Colors.ENDC}")
-                sys.exit(1)
-        else:
-            print(f"{Colors.RED}Exiting due to API configuration failure.{Colors.ENDC}")
-            sys.exit(1)
-            
-    return model_name # Return the model name to be used
+    # Just return the model name - no need to test API here
+    return model_name
 
 def generate_command(description, model_name):
     """Generate a terminal command based on natural language description"""
@@ -211,36 +177,17 @@ Examples:
         if response and hasattr(response, 'text') and response.text:
             command_text = response.text.strip()
             if not command_text or command_text.startswith("ERROR:"):
-                print(f"{Colors.YELLOW}Warning: The model could not generate a valid command. Response: {command_text}{Colors.ENDC}")
                 return None
             return command_text
         else:
-            print(f"{Colors.RED}Error: Received an empty or unexpected response from the API.{Colors.ENDC}")
             return None
     
     except Exception as e:
         error_message = str(e).lower()
-        print(f"{Colors.RED}Error generating command: {str(e)}{Colors.ENDC}")
         if "api key" in error_message or "permission_denied" in error_message or "authentication" in error_message:
-            print(f"{Colors.YELLOW}This might be due to an invalid or expired API key.{Colors.ENDC}")
-            user_choice = input(f"{Colors.YELLOW}Would you like to update the API key now? (y/n): {Colors.ENDC}").lower()
-            if user_choice == 'y':
-                new_api_key = get_api_key() # get_api_key saves the key
-                if new_api_key:
-                    try:
-                        # Test the new key
-                        test_client = genai.Client(api_key=new_api_key)
-                        print(f"{Colors.GREEN}API key updated. Please try your command again.{Colors.ENDC}")
-                        # It's better to let the user retry the command rather than re-calling generate_command recursively here
-                        return None # Indicate failure for this attempt, user should retry
-                    except Exception as e_configure:
-                        print(f"{Colors.RED}Failed to configure API with new key: {e_configure}{Colors.ENDC}")
-                        return None
-                else:
-                    return None # No new key provided
-            else:
-                return None # User chose not to update
-        # Handle other specific exceptions if needed
+            print(f"{Colors.YELLOW}API key issue. Update with: yo --api{Colors.ENDC}")
+        else:
+            print(f"{Colors.RED}Error: {str(e)}{Colors.ENDC}")
         return None
 
 def show_directory_selector(base_command):
@@ -338,205 +285,60 @@ def display_history():
         print()
 
 def main():
-    """Main function to parse arguments and run the tool"""
-    parser = argparse.ArgumentParser(
-        description="yo - Convert natural language to terminal commands.",
-        formatter_class=argparse.RawTextHelpFormatter,
-        epilog=f"""
-Examples:
-  yo list all files in the current directory
-  yo create a new folder named 'my_project'
-  yo find all python files modified in the last 2 days
-  yo --api  # To configure API key and model
-  yo --history # To view command history
-
-{Colors.BOLD}Configuration file:{Colors.ENDC} {CONFIG_FILE}
-{Colors.BOLD}History file:{Colors.ENDC} {HISTORY_FILE}
-"""
-    )
-    parser.add_argument(
-        "description", 
-        nargs="*", 
-        help="Natural language description of the command to generate. \nExample: 'list all files'"
-    )
-    parser.add_argument(
-        "--api", 
-        action="store_true", 
-        help="Configure Google Gemini API key and model."
-    )
-    parser.add_argument(
-        "--history", 
-        action="store_true", 
-        help="Show command history."
-    )
-    parser.add_argument(
-        "--clear-history",
-        action="store_true",
-        help="Clear all command history."
-    )
-    parser.add_argument(
-        "--model",
-        type=str,
-        help=f"Temporarily use a specific model for this query (e.g., gemini-1.5-flash-latest). Does not save to config."
-    )
-
+    parser = argparse.ArgumentParser(description="yo - Convert natural language to terminal commands")
+    parser.add_argument("description", nargs="*", help="Natural language description of the command you want")
+    parser.add_argument("--api", action="store_true", help="Configure API key")
+    parser.add_argument("--history", action="store_true", help="Show command history")
     args = parser.parse_args()
 
-    # Initialize API early. initialize_genai handles its own errors and exits if critical.
-    # It returns the configured model name from config or default.
-    # We pass this to generate_command. If user specifies --model, that overrides.
-    default_model_from_config = initialize_genai()
-    if not default_model_from_config:
-        # This case should ideally be handled by initialize_genai exiting, but as a safeguard:
-        print(f"{Colors.RED}Critical error: Gemini API could not be initialized. Exiting.{Colors.ENDC}")
-        sys.exit(1)
-
-    # Determine the model to use for this session
-    current_session_model = args.model if args.model else default_model_from_config
-    if args.model:
-        print(f"{Colors.BLUE}Using specified model for this session: {current_session_model}{Colors.ENDC}")
-
     if args.api:
-        print(f"{Colors.BLUE}Current API key: {load_config().get('api_key', 'Not set')}{Colors.ENDC}")
-        print(f"{Colors.BLUE}Current Model in config: {load_config().get('model', DEFAULT_MODEL)}{Colors.ENDC}")
-        if input(f"{Colors.YELLOW}Do you want to update the API key? (y/n): {Colors.ENDC}").lower() == 'y':
-            configure_api() # This will prompt, save, and re-configure genai
-        if input(f"{Colors.YELLOW}Do you want to update the default Model in config? (y/n): {Colors.ENDC}").lower() == 'y':
-            new_model_config = input(f"{Colors.YELLOW}Enter new default model name (e.g., {DEFAULT_MODEL}): {Colors.ENDC}").strip()
-            config = load_config()
-            config['model'] = new_model_config if new_model_config else DEFAULT_MODEL
-            save_config(config)
-            print(f"{Colors.GREEN}Default model updated in config to: {config['model']}{Colors.ENDC}")
-        sys.exit(0)
+        configure_api()
+        return
 
     if args.history:
         display_history()
-        sys.exit(0)
-    
-    if args.clear_history:
-        if input(f"{Colors.YELLOW}Are you sure you want to clear all command history? (y/n): {Colors.ENDC}").lower() == 'y':
-            if os.path.exists(HISTORY_FILE):
-                os.remove(HISTORY_FILE)
-                print(f"{Colors.GREEN}Command history cleared.{Colors.ENDC}")
-            else:
-                print(f"{Colors.YELLOW}No history file found to clear.{Colors.ENDC}")
-        else:
-            print(f"{Colors.YELLOW}Operation cancelled.{Colors.ENDC}")
-        sys.exit(0)
+        return
 
     if not args.description:
-        parser.print_help()
-        print(f"\n{Colors.YELLOW}Please provide a description of the command you want to generate, or use --api or --history.{Colors.ENDC}")
-        sys.exit(1)
+        print(f"{Colors.YELLOW}Please provide a description of the command you want.{Colors.ENDC}")
+        print(f"Usage: yo <description>")
+        print(f"Example: yo show me all hidden files")
+        return
 
-    description_text = " ".join(args.description).strip()
-    if len(description_text) < 3:
-        print(f"{Colors.RED}Description is too short. Please provide a more detailed command.{Colors.ENDC}")
-        sys.exit(1)
+    # Initialize the Gemini API
+    model_name = initialize_genai()
 
-    print(f"{Colors.BLUE}Generating command for: \"{description_text}\"{Colors.ENDC} (using model: {current_session_model})")
-    generated_output = generate_command(description_text, current_session_model)
+    # Generate the command
+    description = " ".join(args.description)
+    result = generate_command(description, model_name)
 
-    if generated_output:
-        try:
-            parts = generated_output.split('#', 1)
-            command = parts[0].strip()
-            explanation = parts[1].strip() if len(parts) > 1 else "No explanation provided."
-        except Exception: # Broad catch if split fails unexpectedly
-            command = generated_output.strip()
-            explanation = "Could not parse explanation from API response."
-        
-        if not command: # If command part is empty after stripping
-            print(f"{Colors.RED}The API returned an empty command. Please try rephrasing your request.{Colors.ENDC}")
-            sys.exit(1)
+    if not result:
+        return
 
-        print(f"\n{Colors.GREEN}Suggested command:{Colors.ENDC} {Colors.BOLD}{command}{Colors.ENDC}")
-        print(f"{Colors.YELLOW}Explanation:{Colors.ENDC} {explanation}")
-
-        # Path selection logic
-        # Standardize placeholders for easier checking
-        path_placeholders = ["<PATH>", "<DIRECTORY>", "<FILE>", "[PATH]", "[DIRECTORY]", "[FILE]"]
-        needs_path_selection = any(ph in command for ph in path_placeholders)
-
-        if needs_path_selection:
-            print(f"\n{Colors.YELLOW}This command seems to require a path/file/directory.{Colors.ENDC}")
-            # Create a temporary command string with a standardized placeholder for the selector
-            temp_command_for_selector = command
-            for ph in path_placeholders:
-                temp_command_for_selector = temp_command_for_selector.replace(ph, "<PATH>") # Standardize to <PATH>
-            
-            path_choice = input(f"{Colors.YELLOW}Do you want to select a path interactively now? (y/n/Enter to skip): {Colors.ENDC}").strip().lower()
-            if path_choice == 'y':
-                final_command_with_path = show_directory_selector(temp_command_for_selector)
-                if final_command_with_path:
-                    command = final_command_with_path
-                    print(f"\n{Colors.GREEN}Updated command with selected path:{Colors.ENDC} {Colors.BOLD}{command}{Colors.ENDC}")
-                else:
-                    print(f"{Colors.YELLOW}Path selection cancelled or failed. Command remains: {command}{Colors.ENDC}")
-            else:
-                 print(f"{Colors.YELLOW}Skipping interactive path selection. Please edit placeholders manually if needed.{Colors.ENDC}")
-
-        # Confirmation before execution
-        while True:
-            confirm = input(f"\n{Colors.YELLOW}Execute this command? (y/n/e to edit/c to copy): {Colors.ENDC}").strip().lower()
-            if confirm in ['y', 'n', 'e', 'c']:
-                break
-            print(f"{Colors.RED}Invalid choice. Please enter 'y', 'n', 'e', or 'c'.{Colors.ENDC}")
-
-        if confirm == 'y':
-            print(f"{Colors.BLUE}Executing: {command}{Colors.ENDC}")
-            try:
-                exit_code = os.system(command)
-                if exit_code == 0:
-                    print(f"{Colors.GREEN}Command executed successfully.{Colors.ENDC}")
-                else:
-                    print(f"{Colors.RED}Command executed with exit code: {exit_code}{Colors.ENDC}")
-                save_history({"description": description_text, "command": command, "explanation": explanation, "executed_successfully": exit_code == 0})
-            except Exception as e:
-                print(f"{Colors.RED}Error executing command: {str(e)}{Colors.ENDC}")
-        elif confirm == 'e':
-            print(f"{Colors.YELLOW}Current command: {Colors.BOLD}{command}{Colors.ENDC}")
-            # Set up readline to pre-fill the command for the input prompt
-            readline.set_startup_hook(lambda: readline.insert_text(command))
-            try:
-                # The input prompt will show the 'command' pre-filled, allowing the user to edit it.
-                edited_command_input = input(f"{Colors.YELLOW}Edit command (Press Enter to use current, or modify):\n{Colors.BOLD}> {Colors.ENDC}")
-            finally:
-                readline.set_startup_hook(None) # Important to clear the hook
-
-            final_edited_command = edited_command_input.strip() # Strip whitespace
-
-            if not final_edited_command: # If user cleared the input and pressed Enter
-                print(f"{Colors.YELLOW}Edit cancelled or empty command entered. Using original command: {command}{Colors.ENDC}")
-                final_edited_command = command # Fallback to original
-            
-            print(f"{Colors.BLUE}Executing edited command: {final_edited_command}{Colors.ENDC}")
-            try:
-                exit_code = os.system(final_edited_command)
-                if exit_code == 0:
-                    print(f"{Colors.GREEN}Command executed successfully.{Colors.ENDC}")
-                else:
-                    print(f"{Colors.RED}Command executed with exit code: {exit_code}{Colors.ENDC}")
-                save_history({"description": description_text, "command": final_edited_command, "explanation": explanation, "executed_successfully": exit_code == 0})
-            except Exception as e:
-                print(f"{Colors.RED}Error executing edited command: {str(e)}{Colors.ENDC}")
-        elif confirm == 'c':
-            try:
-                import pyperclip
-                pyperclip.copy(command)
-                print(f"{Colors.GREEN}Command copied to clipboard!{Colors.ENDC}")
-                # Optionally, save to history even if only copied
-                save_history({"description": description_text, "command": command, "explanation": explanation, "executed_successfully": 'copied'})
-            except ImportError:
-                print(f"{Colors.RED}pyperclip library not found. Cannot copy to clipboard.{Colors.ENDC}")
-                print(f"{Colors.YELLOW}To enable copying, please install it: pip install pyperclip{Colors.ENDC}")
-            except pyperclip.PyperclipException as e:
-                print(f"{Colors.RED}Could not copy to clipboard: {e}{Colors.ENDC}")
-                print(f"{Colors.YELLOW}You might need to install a copy/paste mechanism like xclip or xsel on Linux.{Colors.ENDC}")
-        else: # 'n'
-            print(f"{Colors.YELLOW}Command execution cancelled.{Colors.ENDC}")
+    # Split the command and explanation
+    parts = result.split('#', 1)
+    if len(parts) >= 2:
+        command = parts[0].strip()
+        explanation = parts[1].strip()
     else:
-        print(f"{Colors.RED}Could not generate a command. Please try rephrasing your request, check your API key, or try a different model.{Colors.ENDC}")
+        command = result.strip()
+        explanation = "No explanation provided"
+
+    # Save to history
+    history_entry = {
+        "description": description,
+        "command": command,
+        "explanation": explanation
+    }
+    save_history(history_entry)
+
+    # Display the command with explanation
+    print(f"{Colors.GREEN}{command} {Colors.BLUE}# {explanation}{Colors.ENDC}")
+
+    # Ask if user wants to execute the command (auto-yes on Enter)
+    execute = input(f"{Colors.YELLOW}Execute this command? (y/n, Enter=yes): {Colors.ENDC}").strip().lower()
+    if execute == 'y' or execute == '':
+        os.system(command)
 
 if __name__ == "__main__":
     main()

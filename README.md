@@ -24,13 +24,16 @@ A command-line tool that converts natural language descriptions into terminal co
 
 ```bash
 # One-line install (recommended)
-curl -fsSL https://raw.githubusercontent.com/yourusername/yo-cmd/main/install.sh |# One-line install (recommended)
 curl -fsSL https://raw.githubusercontent.com/54yyyu/yo-cmd/main/install.sh | sh
+```
 
 # Or install via npm
+```
 npm install -g yo-cmd
+```
 
 # Or clone and install manually
+```
 git clone https://github.com/54yyyu/yo-cmd.git
 cd yo-cmd
 ./install.sh

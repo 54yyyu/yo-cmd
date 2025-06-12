@@ -13,9 +13,9 @@ pip3 uninstall -y yo-cmd 2>/dev/null || true
 install_dependencies() {
     echo "Installing dependencies..."
     # Try different ways to install dependencies
-    pip3 install google-generativeai || \
-    python3 -m pip install google-generativeai || \
-    pip install google-generativeai
+    pip3 install google-genai || \
+    python3 -m pip install google-genai || \
+    pip install google-genai
 }
 
 # Download yo executable

@@ -1,0 +1,44 @@
+{
+  "name": "yo-cmd",
+  "version": "1.0.0",
+  "description": "A command-line tool that converts natural language descriptions into terminal commands using Google's Gemini API",
+  "main": "yo",
+  "bin": {
+    "yo": "./yo"
+  },
+  "scripts": {
+    "postinstall": "chmod +x ./yo"
+  },
+  "keywords": [
+    "cli",
+    "natural-language",
+    "terminal",
+    "commands",
+    "gemini",
+    "ai",
+    "assistant"
+  ],
+  "author": "54yyyu",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/54yyyu/yo-cmd.git"
+  },
+  "bugs": {
+    "url": "https://github.com/54yyyu/yo-cmd/issues"
+  },
+  "homepage": "https://github.com/54yyyu/yo-cmd#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "preferGlobal": true,
+  "dependencies": {},
+  "peerDependencies": {
+    "python3": ">=3.6"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ]
+}
